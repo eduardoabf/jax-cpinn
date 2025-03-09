@@ -174,6 +174,84 @@ def plot_solution_burgers(generator_nn : JaxNeuralNetwork, discriminator_nn : Ja
     plt.savefig(path + '/' + filename, bbox_inches='tight', dpi = 300)
     plt.show()
 
+def plot_solution_poisson(generator_nn : JaxNeuralNetwork, discriminator_nn : JaxNeuralNetwork, input_data, input_targets, path, filename):
+    """
+    Generic plotter function.
+    Generated Plots:
+    1 - Generator Neural network solution
+    2 - Solution error (i.e. target - computed value)
+    3 - Assigned discriminator weights for each COLLOCATION point
+    """
+    font_size = 9
+    tx, ty = -2.3, -3.5
+
+    fig, ax = plt.subplots(2, 2, figsize = (6, 6), layout='constrained')
+
+    # Plot exact solution
+    Y, X, Z = interpolate_to_regular_grid(input_data, input_targets, N = 1000, nnear = 8)
+    sp1 = ax[0,0]
+    scatter_1 = sp1.contourf(X, Y, Z[:,:,0], levels = 100, vmin = -1, vmax = 1, cmap = 'jet')
+    sp1.set_xlabel(r'$x$', size = font_size)
+    sp1.set_ylabel(r'$y$', size = font_size)
+    sp1.tick_params(axis='both', which='major', labelsize=font_size)
+    cbar = fig.colorbar(scatter_1, ax = sp1, location='top', orientation='horizontal', pad  = 0.02)
+    cbar.ax.set_xlabel(r"Exact $u(x, y)$ - $u$", size = font_size) 
+    cbar.set_ticks([-1, 0, 1])
+    cbar.ax.tick_params(axis='both', which='major', labelsize=font_size)
+    sp1.text(tx, ty, '(a)', fontsize=font_size, va='bottom')
+
+    # Plot predicted solution
+    Y, X, Z = interpolate_to_regular_grid(input_data, generator_nn.forward(generator_nn.weights_biases, input_data), N = 1000, nnear = 8)
+    sp1 = ax[0,1]
+    scatter_1 = sp1.contourf(X, Y, Z[:,:,0], levels = 100, vmin = -1, vmax = 1, cmap = 'jet')
+    sp1.set_xlabel(r'$x$', size = font_size)
+    sp1.set_ylabel(r'$y$', size = font_size)
+    sp1.tick_params(axis='both', which='major', labelsize=font_size)
+    cbar = fig.colorbar(scatter_1, ax = sp1, location='top', orientation='horizontal', pad  = 0.02)
+    cbar.ax.set_xlabel(r"CPINN $u(x, t)$ - $\mathcal{P}$", size = font_size) 
+    cbar.set_ticks([-1, 0, 1])
+    cbar.ax.tick_params(axis='both', which='major', labelsize=font_size)
+    sp1.text(tx, ty, '(b)', fontsize=font_size, va='bottom')
+    
+    # Plot solution error
+    sol_diff = input_targets - generator_nn.forward(generator_nn.weights_biases, input_data)
+    Y, X, Z = interpolate_to_regular_grid(input_data, sol_diff, N = 1000, nnear = 8)
+    # Adjust values data range
+    min_val, max_val = adjust_min_max_range(np.min(sol_diff), np.max(sol_diff))
+    sp1 = ax[1,0]
+    lvls = np.linspace(min_val, max_val, 100)
+    scatter_2 = sp1.contourf(X, Y, Z[:,:,0], levels = lvls, cmap = 'seismic')
+    sp1.set_xlabel(r'$x$', size = font_size)
+    sp1.set_ylabel(r'$y$', size = font_size)
+    sp1.tick_params(axis='both', which='major', labelsize=font_size)
+    cbar = fig.colorbar(scatter_2, ax = sp1, location='top', orientation='horizontal', pad  = 0.02)
+    cbar.ax.set_xlabel(r"Solution error $(\mathcal{P} - u)$", size = font_size) 
+    cbar.set_ticks([min_val, 0, max_val])
+    cbar.ax.tick_params(axis='both', which='major', labelsize=font_size)
+    cbar.ax.get_xaxis().set_major_formatter(LogFormatterSciNotation(base=10, minor_thresholds=(np.inf,np.inf), labelOnlyBase=False))
+    sp1.text(tx, ty, '(c)', fontsize=font_size, va='bottom')
+    
+    # Plot discriminator weights
+    # ATTENTION: careful with the discriminator output index. It should match the desired value
+    sp1 = ax[1,1]
+    dis_weights = discriminator_nn.forward(discriminator_nn.weights_biases, input_data)[:, 1, None]
+    Y, X, Z = interpolate_to_regular_grid(input_data, dis_weights, N = 1000, nnear = 8)
+    min_val, max_val = adjust_min_max_range(np.min(dis_weights), np.max(dis_weights))
+    lvls = np.linspace(np.round(min_val,1), np.round(max_val,1), 100)
+    scatter_3 = sp1.contourf(X, Y, Z[:,:,0], levels = lvls, cmap = 'RdBu')
+    sp1.set_xlabel(r'$x$', size = font_size)
+    sp1.set_ylabel(r'$y$', size = font_size)
+    sp1.tick_params(axis='both', which='major', labelsize=font_size)
+    cbar = fig.colorbar(scatter_3, ax = sp1, location='top', orientation='horizontal', pad  = 0.02)
+    cbar.ax.set_xlabel(r"Discriminator weights - PDE", size = font_size) 
+    cbar.set_ticks([np.round(min_val,1), 0, np.round(max_val,1)])
+    cbar.ax.tick_params(axis='both', which='major', labelsize=font_size)
+    cbar.ax.get_xaxis().set_major_formatter(LogFormatterSciNotation(base=10, minor_thresholds=(np.inf,np.inf), labelOnlyBase=False))
+    sp1.text(tx, ty, '(d)', fontsize=font_size, va='bottom')
+
+    plt.savefig(path + '/' + filename + '.png', bbox_inches='tight', dpi = 300)
+    plt.show()
+
 def min_max(values):
     # Adjust values data range
     if np.abs(np.min(values)) > np.abs(np.min(values)):
