@@ -46,7 +46,7 @@ file_suffix_save = 'poisson'
 file_suffix_load = 'poisson'      
 
 # Trainig parameters
-training_its = 0
+training_its = 25000
 # Saving interval of the NN checkpoint should be saved
 save_checkpoint_its = 100                                     
 # ACGD system eigenvalues computation interval
