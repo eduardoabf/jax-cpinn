@@ -6,7 +6,6 @@ from CPINNs.JaxNeuralNetwork import JaxNeuralNetwork as JaxNN
 import jax
 import jax.numpy as jnp
 import scipy
-import matplotlib.pyplot as plt
 import numpy as np
 import CPINNs.utils as utils
 import scipy.sparse.linalg
@@ -83,16 +82,15 @@ x_collocation = data.xy_inside[:, [0]]
 y_collocation = data.xy_inside[:, [1]]
 
 class PoissonNN(JaxNN):
+    # Custom initializer to set the biases to 0
+    def weight_biases_initializer(self, initializer : jax.nn.initializers, m, n, key):
+        '''
+        Initializes weights and biases based on given jax.nn.initializer
         
-        # Custom initializer to set the biases to 0
-        def weight_biases_initializer(self, initializer : jax.nn.initializers, m, n, key):
-            '''
-            Initializes weights and biases based on given jax.nn.initializer
-            
-            Returns - a tuple (weights, biases) with the initialized weights and biases for the respective layer 
-            '''
-            w_key, b_key = random.split(key)
-            return initializer(w_key, (n, m), self.nn_dtype), jnp.zeros((n,), self.nn_dtype)
+        Returns - a tuple (weights, biases) with the initialized weights and biases for the respective layer 
+        '''
+        w_key, b_key = random.split(key)
+        return initializer(w_key, (n, m), self.nn_dtype), jnp.zeros((n,), self.nn_dtype)
         
 # Initialize the Generator (G) and Discriminator (D) Neural Networks
 G = PoissonNN(layers, jnp.tanh, dtype=data_type)

@@ -7,7 +7,6 @@ from CPINNs.JaxNeuralNetwork import JaxNeuralNetwork as JaxNN
 import jax
 import jax.numpy as jnp
 import scipy
-import matplotlib.pyplot as plt
 import numpy as np
 import CPINNs.utils as utils
 import scipy.sparse.linalg

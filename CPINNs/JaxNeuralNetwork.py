@@ -191,8 +191,7 @@ class JaxNeuralNetwork:
     def random_layer_params(self, m, n, key, scale=1):
         w_key, b_key = random.split(key)
         return scale * random.uniform(w_key, (n, m), self.nn_dtype, -jnp.sqrt(1 / m), jnp.sqrt(1 / m)), scale * random.uniform(
-            b_key, (n,), self.nn_dtype, -jnp.sqrt(1 / m), jnp.sqrt(1 / m)
-        )
+            b_key, (n,), self.nn_dtype, -jnp.sqrt(1 / m), jnp.sqrt(1 / m))
 
     def weight_biases_initializer(self, initializer: jax.nn.initializers, m, n, key):
         """

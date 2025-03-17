@@ -6,7 +6,6 @@ from CPINNs.JaxNeuralNetwork import JaxNeuralNetwork as JaxNN
 import jax
 import jax.numpy as jnp
 import scipy
-import matplotlib.pyplot as plt
 import numpy as np
 import CPINNs.utils as utils
 import scipy.sparse.linalg
@@ -15,7 +14,6 @@ from ACGD import JACGD
 from datetime import datetime
 from pyDOE import lhs
 from jax import random
-from functools import partial
 from jax import config
 from data_loader import BurgersDataSampler
 
@@ -48,7 +46,7 @@ file_suffix_save = 'burgers'
 file_suffix_load = None #'burgers'   
 
 # Trainig parameters
-training_its = 0
+training_its = 10000
 
 # NN checkpoint saving training iterations interval 
 save_checkpoint_its = 100                                     
@@ -58,7 +56,7 @@ compute_eigvals = False
 compute_eigvals_its = 500                     
 
 # Whether to include a Fourier Features layer in both NNs. Editing the Fourier Feature layer can be done in the script below                
-fourier_features = True                       
+fourier_features = False                       
 
 #==================================================================================================================================
 
@@ -73,9 +71,20 @@ data = BurgersDataSampler(input_data_path, n_boundary, n_colloc, data_type)
 layers = [2, 30, 20, 20, 20, 20, 1]
 layers_d = [2, 30, 20, 20, 20, 20, 20, 2]
 
+class BurgersNN(JaxNN):
+    # Custom initializer to set the biases to 0
+    def weight_biases_initializer(self, initializer : jax.nn.initializers, m, n, key):
+        '''
+        Initializes weights and biases based on given jax.nn.initializer
+        
+        Returns - a tuple (weights, biases) with the initialized weights and biases for the respective layer 
+        '''
+        w_key, b_key = random.split(key)
+        return initializer(w_key, (n, m), self.nn_dtype), jnp.zeros((n,), self.nn_dtype)
+        
 # Initialize the Generator (G) and Discriminator (D) Neural Networks
-G = JaxNN(layers, jnp.tanh, dtype=data_type)
-D = JaxNN(layers_d, jax.nn.relu, dtype=data_type)
+G = BurgersNN(layers, jnp.tanh, dtype=data_type)
+D = BurgersNN(layers_d, jax.nn.relu, dtype=data_type)
 
 # Set input data normalization function in both NNs
 G.set_data_normalization_func(lambda data_point: 2.0*(data_point - data.lb)/(data.ub - data.lb) - 1.0)
