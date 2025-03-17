@@ -1,7 +1,3 @@
-# import os
-# os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = ".40"
-# os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
-
 import jax
 import jax.numpy as jnp
 from jax import random

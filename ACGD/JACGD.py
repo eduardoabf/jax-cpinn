@@ -146,10 +146,12 @@ class ACGD:
 
         # Here we only need to compute the paramter update of one agent. Since we already know what the minimizing model's "action" is,
         # one can simply compute the maximizing model's "reaction" to it.
-        # Still, one can also have calculte delta_max using its own linear system as given below.
-        #A2 = Operator(df_dy, df_dx, self.min_params, self.max_params, eta_min, eta_max)
-        #b2 = eta_max.sqrt() * (df_dy - vectorize(autograd.grad(df_dx, self.max_params, eta_min * df_dx, retain_graph=True)))
-        #dy = + eta_max.sqrt() * self.solver.solve(A2, b2).view(-1)
+        # Still, one can also calculte the maximizing model's parameter update using its own linear system as given below, although this is not efficient.
+        # A2 = Operator(self, min_params_vec, max_params_vec, eta_min, eta_max, (self.n_max, self.n_max))
+        # eta_min_df_dy_product = eta_min * vars_state_dict['df_dmin']
+        # df_dmaxdmin_vp = self.hvp_df_dmax(max_params_vec, min_params_vec, eta_min_df_dy_product)
+        # b2 = jnp.sqrt(eta_max) * (vars_state_dict['df_dmax'] + df_dmindmax_vp) 
+        # prev_sol_max = scipy.sparse.linalg.gmres(A2, b2, rtol=self.gmres_rtol, atol=1e-20, restart=1000, maxiter=1, callback=counter, callback_type='pr_norm')
 
         # Compute b1 (i.e. right hand side of the system A1.x = b1)
         eta_max_df_dy_product = eta_max * vars_state_dict['df_dmax']
@@ -261,16 +263,6 @@ def hvp(grad_func : jax.grad, primals, tangents):
 def convert_params_to_numpy(params: list):
     x_0 = jax.tree_util.tree_flatten(params)
     return jnp.concatenate([wb.reshape(-1) for wb in x_0[0]], axis=0)
-
-# def update_params(params: list, x_0: np.ndarray):
-#     i = 0
-#     for weights, biases in params:
-#         k = weights.size
-#         weights = jnp.array(x_0[i: i + k].reshape(weights.shape))
-#         i += k
-#         j = biases.size
-#         biases = jnp.array(x_0[i: i + j].reshape(biases.shape))
-#         i += j
 
 def convert_array_to_tree_structure(params: list, x_0: np.ndarray):
     i = 0

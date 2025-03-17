@@ -50,10 +50,11 @@ path_save_checkpoint = save_folder + 'checkpoint_weights_biases/'
 file_suffix_save = 'allen_cahn'
 
 # File suffix for loading previous weights and biases into the current NN. If if None, nothing is loaded
+# NOTE: if you are loading weights and biases with Fourier Features, you have to set the corresponding parameter below to 'true'
 file_suffix_load = None #'allen_cahn'      
 
 # Trainig parameters
-training_its = 1000
+training_its = 15000
 
 # NN checkpoint saving training iterations interval 
 save_checkpoint_its = 100
@@ -62,7 +63,7 @@ save_checkpoint_its = 100
 compute_eigvals = False
 compute_eigvals_its = 500
 
-# Whether to include a Fourier Features layer in both NNs                  
+# Whether to include a Fourier Features layer in both NNs. Editing the Fourier Feature layer can be done in the script below                  
 fourier_features = False
 #==================================================================================================================================
 
@@ -86,11 +87,13 @@ class AllenCahnNN(JaxNN):
 # Read input data
 data = ACDataSampler(input_data_path, [-1, 0], [1, 1], n_boundary, n_colloc, n_init, data_type)
 
-# Initialize the Neural Networks
+# Initialize the Generator (G) and Discriminator (D) Neural Networks
 layers = [2, 30, 30, 20, 20, 20, 1]
 layers_d = [2, 30, 30, 20, 20, 20, 20, 4]
 G = AllenCahnNN(layers, jnp.tanh, dtype=data_type)
-D = AllenCahnNN(layers_d, jax.nn.gelu, dtype=data_type)
+# In this case, gelu works better WITHOUT Fourier Features
+d_activ_func = jax.nn.relu if fourier_features else jax.nn.gelu
+D = AllenCahnNN(layers_d, d_activ_func, dtype=data_type)
 
 # Set data normalization function in both NNs
 G.set_data_normalization_func(lambda data_point: 2.0*(data_point - data.lb)/(data.ub - data.lb) - 1.0)
@@ -214,7 +217,7 @@ for i in range(training_its):
     prev_sol = optimizer.solve_gmres(g_params_vec, d_params_vec, vars_state_dict)
 
     # Generate and save the ACGD linear system to be solved with gmres every 1000 its
-    if (compute_eigvals and ((i+1) % compute_eigvals_its == 0)):
+    if (compute_eigvals and (i % compute_eigvals_its == 0)):
         print("Compute ACGD linear system eigenvalues")
         t_start = datetime.now()
         
@@ -223,7 +226,7 @@ for i in range(training_its):
         
         # Save generated eigenvalues
         eigvals, eigvecs = scipy.sparse.linalg.eigs(OP, k = jnp.shape(vars_state_dict['eta_min'])[0] - 2, which='LM')
-        np.savez_compressed("CPINNNs/allen_cahn/acgd_eigenvalues/eigvals_" + file_suffix_save + "_it" + str(i) + ".npz", eigvals = eigvals)
+        np.savez_compressed("CPINNs/allen_cahn/acgd_eigenvalues/eigvals_" + file_suffix_save + "_it" + str(i) + ".npz", eigvals = eigvals)
         
         print(f"Eigenvalues computation time: {datetime.now() - t_start}")
 
@@ -243,8 +246,8 @@ for i in range(training_its):
     pde_loss.append(loss_pde(G.weights_biases))
     boundary_loss.append(loss_boundary_u(G.weights_biases))
 
-    #Save generator NN weights and biases every 1000 iterations
-    if (i+1) % 100 == 0:
+    #Save generator NN weights and biases every 'save_checkpoint_its' iterations
+    if (i+1) % save_checkpoint_its == 0:
         utils.save_weights_biases_kernel(G.weights_biases, G.ff_kernel, path_save_checkpoint, "gen_" + file_suffix_save)
         utils.save_weights_biases_kernel(D.weights_biases, D.ff_kernel, path_save_checkpoint, "dis_" + file_suffix_save)
         utils.save_losses(l2_loss, cpinn_loss, pde_loss, boundary_loss, path_save_losses, file_suffix_save)

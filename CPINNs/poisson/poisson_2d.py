@@ -28,6 +28,7 @@ data_type = jnp.float64
 # Input data
 n_colloc = 5000
 n_boundary = 50
+
 # Spatial domain upper and lower bounds ([x, y] coordinates)
 lb = np.array([-2, -2])
 ub = np.array([2, 2])
@@ -35,25 +36,31 @@ n_mesh = 256 # dimension of domain mesh point e.g. 256 x 256
 
 # File suffix for loading/saving the data
 save_folder = 'CPINNs/poisson/'
+
 # Where to save the iteration losses
 path_save_losses = save_folder + 'losses/'      
+
 # Where to save the NNs weights and biases checkpoint
 path_save_checkpoint = save_folder + 'checkpoint_weights_biases/' 
           
 # File suffix for saving weights and biases of the current NNs
 file_suffix_save = 'poisson'
+
 # File suffix for loading previous weights and biases into the current NN. If if None, nothing is loaded
-file_suffix_load = 'poisson'      
+# NOTE: if you are loading weights and biases with Fourier Features, you have to set the corresponding parameter below to 'true'
+file_suffix_load = None #'poisson'      
 
 # Trainig parameters
 training_its = 25000
+
 # Saving interval of the NN checkpoint should be saved
 save_checkpoint_its = 100                                     
+
 # ACGD system eigenvalues computation interval
 compute_eigvals = False
 compute_eigvals_its = 500
 
-# Whether to include a Fourier Features layer in both NNs                  
+# Whether to include a Fourier Features layer in both NNs. Editing the Fourier Feature layer can be done in the script below                 
 fourier_features = False                       
 
 #==================================================================================================================================
@@ -87,7 +94,7 @@ class PoissonNN(JaxNN):
             w_key, b_key = random.split(key)
             return initializer(w_key, (n, m), self.nn_dtype), jnp.zeros((n,), self.nn_dtype)
         
-# Build the neural networks
+# Initialize the Generator (G) and Discriminator (D) Neural Networks
 G = PoissonNN(layers, jnp.tanh, dtype=data_type)
 D = PoissonNN(layers_d, jax.nn.relu, dtype=data_type)
 
@@ -119,7 +126,7 @@ def u_y_sum(x, y, g_weights_biases):
 @jax.jit
 def u_xx(x, y, g_weights_biases):
     return jax.grad(u_x_sum, 0)(x, y, g_weights_biases)
-
+False
 @jax.jit
 def u_yy(x, y, g_weights_biases):
     return jax.grad(u_y_sum, 1)(x, y, g_weights_biases)
@@ -194,7 +201,7 @@ for i in range(training_its):
     prev_sol = optimizer.solve_gmres(g_params_vec, d_params_vec, vars_state_dict)
 
     # Generate and save the ACGD linear system to be solved with gmres
-    if (compute_eigvals and ((i+1) % compute_eigvals_its == 0)):
+    if (compute_eigvals and (i % compute_eigvals_its == 0)):
         print("Compute ACGD linear system eigenvalues")
         t_start = datetime.now()
         
@@ -203,7 +210,7 @@ for i in range(training_its):
         
         # Save generated eigenvalues
         eigvals, eigvecs = scipy.sparse.linalg.eigs(OP, k = jnp.shape(vars_state_dict['eta_min'])[0] - 2, which='LM')
-        np.savez_compressed("CPINNNs/poisson/acgd_eigenvalues/eigvals_" + file_suffix_save + "_it" + str(i) + ".npz", eigvals = eigvals)
+        np.savez_compressed("CPINNs/poisson/acgd_eigenvalues/eigvals_" + file_suffix_save + "_it" + str(i) + ".npz", eigvals = eigvals)
         
         print(f"Eigenvalues computation time: {datetime.now() - t_start}")
 
@@ -223,8 +230,8 @@ for i in range(training_its):
     pde_loss.append(loss_pde(G.weights_biases))
     boundary_loss.append(loss_boundary(G.weights_biases))
 
-    #Save generator NN weights and biases every 100 iterations
-    if i % 100 == 0:
+    #Save generator NN weights and biases every 'save_checkpoint_its' iterations
+    if i % save_checkpoint_its == 0:
         utils.save_weights_biases_kernel(G.weights_biases, G.ff_kernel, path_save_checkpoint, "gen_" + file_suffix_save)
         utils.save_weights_biases_kernel(D.weights_biases, D.ff_kernel, path_save_checkpoint, "dis_" + file_suffix_save)
         utils.save_losses(l2_loss, cpinn_loss, pde_loss, boundary_loss, path_save_losses, file_suffix_save)

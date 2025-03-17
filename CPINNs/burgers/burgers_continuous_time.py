@@ -33,18 +33,22 @@ n_boundary = 250
 
 # File suffix for loading/saving the data
 save_folder = 'CPINNs/burgers/'
+
 # Where to save the iteration losses
-path_save_losses = save_folder + 'losses/'      
+path_save_losses = save_folder + 'losses/'
+
 # Where to save the NNs weights and biases checkpoint
 path_save_checkpoint = save_folder + 'checkpoint_weights_biases/' 
           
 # File suffix for saving weights and biases of the current NNs
 file_suffix_save = 'burgers'
+
 # File suffix for loading previous weights and biases into the current NN. If if None, nothing is loaded
-file_suffix_load = None   
+# NOTE: if you are loading weights and biases with Fourier Features, you have to set the corresponding parameter below to 'true'
+file_suffix_load = None #'burgers'   
 
 # Trainig parameters
-training_its = 10000
+training_its = 0
 
 # NN checkpoint saving training iterations interval 
 save_checkpoint_its = 100                                     
@@ -53,8 +57,8 @@ save_checkpoint_its = 100
 compute_eigvals = False
 compute_eigvals_its = 500                     
 
-# Whether to include a Fourier Features layer in both NNs                  
-fourier_features = False                       
+# Whether to include a Fourier Features layer in both NNs. Editing the Fourier Feature layer can be done in the script below                
+fourier_features = True                       
 
 #==================================================================================================================================
 
@@ -69,7 +73,7 @@ data = BurgersDataSampler(input_data_path, n_boundary, n_colloc, data_type)
 layers = [2, 30, 20, 20, 20, 20, 1]
 layers_d = [2, 30, 20, 20, 20, 20, 20, 2]
 
-# Build the neural networks
+# Initialize the Generator (G) and Discriminator (D) Neural Networks
 G = JaxNN(layers, jnp.tanh, dtype=data_type)
 D = JaxNN(layers_d, jax.nn.relu, dtype=data_type)
 
@@ -174,7 +178,7 @@ for i in range(training_its):
     prev_sol = optimizer.solve_gmres(g_params_vec, d_params_vec, vars_state_dict)
 
     # Generate and save the ACGD linear system to be solved with gmres every 1000 its
-    if (compute_eigvals and ((i+1) % compute_eigvals_its == 0)):
+    if (compute_eigvals and (i % compute_eigvals_its == 0)):
         print("Compute ACGD linear system eigenvalues")
         t_start = datetime.now()
         
@@ -183,7 +187,7 @@ for i in range(training_its):
         
         # Save generated eigenvalues
         eigvals, eigvecs = scipy.sparse.linalg.eigs(OP, k = jnp.shape(vars_state_dict['eta_min'])[0] - 2, which='LM')
-        np.savez_compressed("CPINNNs/burgers/acgd_eigenvalues/eigvals_" + file_suffix_save + "_it" + str(i) + ".npz", eigvals = eigvals)
+        np.savez_compressed("CPINNs/burgers/acgd_eigenvalues/eigvals_" + file_suffix_save + "_it" + str(i) + ".npz", eigvals = eigvals)
         
         print(f"Eigenvalues computation time: {datetime.now() - t_start}")
 
@@ -203,7 +207,7 @@ for i in range(training_its):
     pde_loss.append(loss_pde(G.weights_biases))
     boundary_loss.append(loss_boundary(G.weights_biases))
 
-    #Save generator NN weights and biases every 100 iterations
+    #Save generator NN weights and biases every 'save_checkpoint_its' iterations
     if i % save_checkpoint_its == 0:
         utils.save_weights_biases_kernel(G.weights_biases, G.ff_kernel, path_save_checkpoint, "gen_" + file_suffix_save)
         utils.save_weights_biases_kernel(D.weights_biases, D.ff_kernel, path_save_checkpoint, "dis_" + file_suffix_save)

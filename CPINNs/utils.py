@@ -4,7 +4,7 @@ import matplotlib
 import jax.numpy as jnp
 import warnings
 from CPINNs.JaxNeuralNetwork import JaxNeuralNetwork
-from matplotlib.ticker import LogFormatterSciNotation
+from matplotlib.ticker import LogFormatterSciNotation, MaxNLocator
 from scipy.spatial import cKDTree as KDTree
 
 # Set global plotting parameters
@@ -91,7 +91,7 @@ def load_weights_biases_in_nn(neural_net : JaxNeuralNetwork, weights_file_path, 
     """
     weights_file = np.load(weights_file_path)
     biases_file = np.load(biases_file_path)
-    neural_net.weights_biases = [(weights_file[w_file].astype(neural_net.nn_dtype), biases_file[b_file].astype(neural_net.nn_dtype))  for w_file, b_file in zip(weights_file.files, biases_file.files)]
+    neural_net.weights_biases = [(weights_file[w_file].astype(neural_net.nn_dtype), biases_file[b_file].astype(neural_net.nn_dtype)) for w_file, b_file in zip(weights_file.files, biases_file.files)]
     if ff_kernel_file_path is not None:
         neural_net.ff_kernel = np.load(ff_kernel_file_path)['ff_kernel']
 
@@ -125,13 +125,14 @@ def plot_solution_burgers(generator_nn : JaxNeuralNetwork, discriminator_nn : Ja
     # CPINN solution 
     Y, X, Z = interpolate_to_regular_grid(input_data, generator_nn.forward(generator_nn.weights_biases, input_data), N = 1000, nnear = 8)
     sp1 = ax[0,1]
-    scatter_1 = sp1.contourf(X, Y, Z[:,:,0], levels = 100, vmin = -1, vmax = 1)
+    scatter_1 = sp1.contourf(X, Y, Z[:,:,0], levels = 100)
     sp1.set_xlabel(r'$t$', size = font_size)
     sp1.set_ylabel(r'$x$', size = font_size)
     sp1.tick_params(axis='both', which='major', labelsize=font_size)
     cbar = fig.colorbar(scatter_1, ax = sp1, location='top', orientation='horizontal', pad  = 0.02)
     cbar.ax.set_xlabel(r"CPINN $u(x, t)$ - $\mathcal{P}$", size = font_size) 
-    cbar.set_ticks([-1, 0, 1])
+    cbar.locator = MaxNLocator(nbins=3)
+    cbar.update_ticks()
     cbar.ax.tick_params(axis='both', which='major', labelsize=font_size)
     sp1.text(-0.1, -1.75, '(b)', fontsize=font_size, va='bottom')
     
@@ -203,13 +204,14 @@ def plot_solution_poisson(generator_nn : JaxNeuralNetwork, discriminator_nn : Ja
     # Plot predicted solution
     Y, X, Z = interpolate_to_regular_grid(input_data, generator_nn.forward(generator_nn.weights_biases, input_data), N = 1000, nnear = 8)
     sp1 = ax[0,1]
-    scatter_1 = sp1.contourf(X, Y, Z[:,:,0], levels = 100, vmin = -1, vmax = 1, cmap = 'jet')
+    scatter_1 = sp1.contourf(X, Y, Z[:,:,0], levels = 100, cmap = 'jet')
     sp1.set_xlabel(r'$x$', size = font_size)
     sp1.set_ylabel(r'$y$', size = font_size)
     sp1.tick_params(axis='both', which='major', labelsize=font_size)
     cbar = fig.colorbar(scatter_1, ax = sp1, location='top', orientation='horizontal', pad  = 0.02)
     cbar.ax.set_xlabel(r"CPINN $u(x, t)$ - $\mathcal{P}$", size = font_size) 
-    cbar.set_ticks([-1, 0, 1])
+    cbar.locator = MaxNLocator(nbins=3)
+    cbar.update_ticks()
     cbar.ax.tick_params(axis='both', which='major', labelsize=font_size)
     sp1.text(tx, ty, '(b)', fontsize=font_size, va='bottom')
     
@@ -280,14 +282,15 @@ def plot_solution_ac(generator_nn : JaxNeuralNetwork, discriminator_nn : JaxNeur
     # Plot predicted solution
     Y, X, Z = interpolate_to_regular_grid(input_data, generator_nn.forward(generator_nn.weights_biases, input_data), N = 1000, nnear = 8)
     sp1 = ax[0,1]
-    scatter_1 = sp1.contourf(X, Y, Z[:,:,0], levels = 100, vmin = -1, vmax = 1, cmap = 'jet')
+    scatter_1 = sp1.contourf(X, Y, Z[:,:,0], levels = 100, cmap = 'jet')
     sp1.set_xlabel(r'$t$', size = font_size)
     sp1.set_ylabel(r'$x$', size = font_size)
     sp1.tick_params(axis='both', which='major', labelsize=font_size)
     # Colorbar
     cbar = fig.colorbar(scatter_1, ax = sp1, location='top', orientation='horizontal', pad  = 0.02)
     cbar.ax.set_xlabel(r"CPINN $u(x, t)$ - $\mathcal{P}$", size = font_size) 
-    cbar.set_ticks([-1, 0, 1])
+    cbar.locator = MaxNLocator(nbins=3)
+    cbar.update_ticks()
     cbar.ax.tick_params(axis='both', which='major', labelsize=font_size)
     sp1.text(tx, ty, '(b)', fontsize=font_size, va='bottom')
     
